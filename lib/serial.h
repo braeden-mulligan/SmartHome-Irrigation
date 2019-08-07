@@ -5,7 +5,7 @@ Author: Braeden Mulligan
 
 #define BAUD 9600
 #define BAUD_EQ (F_CPU / 16 / BAUD - 1)
-#define UART_BUFFER_SIZE 64
+#define UART_BUFFER_SIZE 32
 
 void UART_init();
 

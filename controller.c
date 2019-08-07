@@ -4,6 +4,7 @@ Author: Braeden Mulligan
 */
 
 #include <stdbool.h>
+#include <stdio.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 //#include <util/delay.h>
@@ -12,22 +13,22 @@ Author: Braeden Mulligan
 #include "lib/logger.h"
 
 //--- Analogue to Digital.
-//TODO: Tweak for 3.3V
 void ADC_convert() {
 	ADCSRA |= (1 << ADSC);
 }
 
 void ADC_init() {
-	ADMUX = (1 << REFS0) | (1 << MUX0) | (1 << MUX2);
-	ADCSRA = (1 << ADEN) | (1 << ADIE); // Clock scaling for ADC
-	ADCSRA |= (1 << ADPS0) | (1 << ADPS1) | (1 << ADPS2); // Trigger interrupt upon conversion.
-	DIDR0 = (1 << ADC5D);
+	ADMUX = (1 << REFS0);
+	ADCSRA |= (1 << ADEN) | (1 << ADIE); // Trigger interrupt upon conversion.
+	ADCSRA |= (1 << ADPS0) | (1 << ADPS1) | (1 << ADPS2); // Clock scaling for ADC.
+	DIDR0 = (1 << ADC0D);
 
 	ADC_convert();
 }
 
+volatile short sensor_read = 0;
 ISR(ADC_vect) {
-	//delta = delta_min + (0.33 * ( (float) ADC / 1024.0));
+	sensor_read = ADC;
 }
 //---
 
@@ -49,12 +50,13 @@ int main(void) {
 
 	UART_init();
 	TIMER8_init();
+	ADC_init();
 
-	char status_message[UART_BUFFER_SIZE] = "Test status report.\n\r";
+	char status_message[UART_BUFFER_SIZE];
 	while (true) {
-		button_poll(status_message);
-	//	Read/control moisture
-	//	sleep
+		sprintf(status_message, "Sensor result: %d\n\r", sensor_read);
+		ADC_convert();
+		button_poll(status_message); //TODO: Bug in serial writing. Looping behaviour upon (UART_BUFFER_SIZE / 4) number of writes.
 	}
 
 }
