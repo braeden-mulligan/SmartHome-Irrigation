@@ -56,7 +56,7 @@ int main(void) {
 	while (true) {
 		sprintf(status_message, "Sensor result: %d\n\r", sensor_read);
 		ADC_convert();
-		button_poll(status_message); //TODO: Bug in serial writing. Looping behaviour upon (UART_BUFFER_SIZE / 4) number of writes.
+		button_poll(status_message);
 	}
 
 }

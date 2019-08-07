@@ -21,8 +21,8 @@ uint8_t tx_cursor_put = 0;
 
 // Return true if buffer is about to be overwritten on next call.
 bool tx_buffer_append(char c) {
-	//if (tx_cursor_put >= UART_BUFFER_SIZE) tx_cursor_put = 0;
-	tx_cursor_put %= UART_BUFFER_SIZE;
+	if (tx_cursor_put >= UART_BUFFER_SIZE) tx_cursor_put = 0;
+	//tx_cursor_put %= UART_BUFFER_SIZE;
 	tx_buffer[tx_cursor_put] = c;
 	++tx_cursor_put;
 	if (tx_cursor_put == tx_cursor_send) return true;
@@ -36,9 +36,10 @@ void UART_transmit(char byte) {
 
 void UART_write() {
 	do { 
+		if (tx_cursor_send >= UART_BUFFER_SIZE) tx_cursor_send = 0;
 		UART_transmit(tx_buffer[tx_cursor_send]);
 		++tx_cursor_send;
-		tx_cursor_send %= UART_BUFFER_SIZE;
+		//tx_cursor_send %= UART_BUFFER_SIZE;
 	}while (tx_cursor_send != tx_cursor_put);
 }
 
@@ -50,7 +51,7 @@ void serial_write(char* text) {
 	while (text[i] != '\0') {
 		if (warning) { 
 			UART_write();
-			UART_transmit('\n'); UART_transmit('\r');
+			//UART_transmit('\n'); UART_transmit('\r');
 			char error[UART_BUFFER_SIZE] = "ERROR: Buffer overflow.\n\r";
 			for (uint8_t j = 0; j < UART_BUFFER_SIZE; ++j) {
 				tx_buffer_append(error[j]);
