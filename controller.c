@@ -19,23 +19,24 @@ void ADC_convert() {
 
 void ADC_init() {
 	ADMUX = (1 << REFS0);
-	ADCSRA |= (1 << ADEN) | (1 << ADIE); // Trigger interrupt upon conversion.
-	ADCSRA |= (1 << ADPS0) | (1 << ADPS1) | (1 << ADPS2); // Clock scaling for ADC.
+	ADCSRA |= (1 << ADEN) | (1 << ADIE); 
+	ADCSRA |= (1 << ADPS0) | (1 << ADPS1) | (1 << ADPS2); 
 	DIDR0 = (1 << ADC0D);
 
 	ADC_convert();
 }
 
 volatile short sensor_read = 0;
-//volatile bool read_done = false;
+volatile bool read_done = false;
 ISR(ADC_vect) {
 	sensor_read = ADC;
-	//read_done = true;
+	read_done = true;
 }
 //---
 
 //--- General 16 bit Timer.
 //TODO: Repurpose for timed moisture checks.
+/*
 void TIMER16_init() {
 	TCCR1B = (1 << WGM12); 
 	OCR1A = 785; 
@@ -44,16 +45,10 @@ void TIMER16_init() {
 	TCCR1B |= (1 << CS10) | (1 << CS12);
 }
 
-//ISR(TIMER1_COMPA_vect) {
-//}
-//---
-
-void blink_LED() {
-	PORTB |= _BV(DDB5);
-	_delay_ms(500);
-	PORTB &= ~_BV(DDB5);
-	_delay_ms(500);
+ISR(TIMER1_COMPA_vect) {
 }
+*/
+//---
 
 //--- Control logic.
 #define MOISTURE_TARGET 420
@@ -71,25 +66,33 @@ bool valve_on() {
 	return true;
 }
 
+void blink_LED() {
+	PORTB |= _BV(DDB5);
+	_delay_ms(500);
+	PORTB &= ~_BV(DDB5);
+	_delay_ms(500);
+}
+
 //TODO: Blink LED via 8 bit timer.
-//TODO: Cause system stoppage for now.
+//TODO: Cause system stoppage for now. 
 void error_report(char* buffer, char* message){
-	//TODO: disable sensor reads
-	//TODO: stop timer.
 	valve_status = valve_off();
 	sprintf(buffer, message);
 	serial_put(buffer);
+	TIMER8_halt();
 	while (true) {
 		UART_write();
-		blink_LED();
+		for (int i = 0; i < 5; ++i) {
+			blink_LED();
+		}
 	}
-};
+}
 
 short initial_read = 0;
 short m_target = MOISTURE_TARGET;
 short m_low = MOISTURE_TARGET - MOISTURE_THRESHOLD;
 short m_high = MOISTURE_TARGET + MOISTURE_THRESHOLD;
-// Experimentally determined sensor reading range.
+// Experimentally determined range of sensor readings.
 // Consider moisture values outside of these bounds to be garbage.
 short m_min = 300;
 short m_max = 600;
@@ -105,44 +108,46 @@ int main(void) {
 
 	char status_message[UART_BUFFER_SIZE / 2]; // Append up to 'divisor' logs to serial bufer.
 
-	// Take average of last 3 readings.
-	//short sensor_avg[3] = {m_target, m_target, m_target};
-
 	// Sensor read failure count.
 	short garbage_pile = 0; 
-	// Complain if failure count exceeds this.
 	short garbage_limit = 1; // Allow one mis-read.
 
 	ADC_init();
 	UART_init();
 	TIMER8_init();
 
+	//uint8_t read_waits = 0;
 	while (true) {
 		// Clear logs that were not printed. 
 		tx_buffer_erase(); 
 
 		ADC_convert();
 
-		//if (read_done) {
-		// Make sure there enough good "consecutive" reads.
-		if (sensor_read < m_min || sensor_read > m_max) {
-			garbage_pile++;
-		}else {
-			garbage_pile--;
-			if (garbage_pile < 0) garbage_pile = 0;
-		};
+		if (read_done) {
+			// Make sure there enough good "consecutive" reads.
+			if (sensor_read < m_min || sensor_read > m_max) {
+				garbage_pile++;
+			}else {
+				garbage_pile--;
+				if (garbage_pile < 0) garbage_pile = 0;
+			};
+			//sprintf(status_message, "Read attempts: %d\n\r", read_waits);
+			//serial_put(status_message);
+			read_done = false;
+			//read_waits = 0;
+		}//else { read_waits++; };
 
 		if (garbage_pile > garbage_limit) {
 			valve_status = valve_off();
 			error_report(status_message, "Insufficient number of consecutive reads\n\r");
 		}else {
-			if (sensor_read < m_low && !valve_status) {
+			if (sensor_read > m_high && !valve_status) {
 				valve_status = valve_on();
 				initial_read = sensor_read;
 				//start timer
 			};
 
-			if (valve_status && sensor_read > m_high){
+			if (valve_status && sensor_read < m_low){
 				valve_status = valve_off();
 				//stop timer
 			};

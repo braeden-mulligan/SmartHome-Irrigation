@@ -30,6 +30,10 @@ void TIMER8_init() {
 	TCCR0B |= (1 << CS02) | (1 << CS00);
 }
 
+void TIMER8_halt() {
+	TIMSK0 &= ~(1 << OCIE0A);
+}
+
 uint8_t timer8_count = 0;
 volatile bool pressed = false;
 volatile bool held = false;
