@@ -7,7 +7,7 @@ Author: Braeden Mulligan
 #include <stdio.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
-//#include <util/delay.h>
+#include <util/delay.h>
 
 #include "lib/serial.h"
 #include "lib/logger.h"
@@ -48,9 +48,16 @@ void TIMER16_init() {
 //}
 //---
 
+void blink_LED() {
+	PORTB |= _BV(DDB5);
+	_delay_ms(500);
+	PORTB &= ~_BV(DDB5);
+	_delay_ms(500);
+}
+
 //--- Control logic.
-#define MOISTURE_TARGET 450
-#define MOISTURE_THRESHOLD 50
+#define MOISTURE_TARGET 420
+#define MOISTURE_THRESHOLD 69
 
 bool valve_status;
 
@@ -64,11 +71,24 @@ bool valve_on() {
 	return true;
 }
 
+//TODO: Blink LED via 8 bit timer.
+//TODO: Cause system stoppage for now.
+void error_report(char* buffer, char* message){
+	//TODO: disable sensor reads
+	//TODO: stop timer.
+	valve_status = valve_off();
+	sprintf(buffer, message);
+	serial_put(buffer);
+	while (true) {
+		UART_write();
+		blink_LED();
+	}
+};
+
 short initial_read = 0;
 short m_target = MOISTURE_TARGET;
 short m_low = MOISTURE_TARGET - MOISTURE_THRESHOLD;
 short m_high = MOISTURE_TARGET + MOISTURE_THRESHOLD;
-
 // Experimentally determined sensor reading range.
 // Consider moisture values outside of these bounds to be garbage.
 short m_min = 300;
@@ -79,13 +99,19 @@ int main(void) {
 	// Set pin 8 output - off.
 	DDRB |= _BV(DDB0);
 	valve_status = valve_off();
+	// Set internal LED off.
+	DDRB |= _BV(DDB5);
+	PORTB &= ~_BV(DDB5);
 
-	char status_message[UART_BUFFER_SIZE / 4]; // Append up to 4 logs to serial bufer.
+	char status_message[UART_BUFFER_SIZE / 2]; // Append up to 'divisor' logs to serial bufer.
 
 	// Take average of last 3 readings.
 	//short sensor_avg[3] = {m_target, m_target, m_target};
-	short garbage_pile = 0; // Sensor read failure count.
-	short garbage_threshold = 1; // Complain if failure count exceeds this.
+
+	// Sensor read failure count.
+	short garbage_pile = 0; 
+	// Complain if failure count exceeds this.
+	short garbage_limit = 1; // Allow one mis-read.
 
 	ADC_init();
 	UART_init();
@@ -98,6 +124,7 @@ int main(void) {
 		ADC_convert();
 
 		//if (read_done) {
+		// Make sure there enough good "consecutive" reads.
 		if (sensor_read < m_min || sensor_read > m_max) {
 			garbage_pile++;
 		}else {
@@ -105,32 +132,34 @@ int main(void) {
 			if (garbage_pile < 0) garbage_pile = 0;
 		};
 
-		if (garbage_pile > garbage_threshold) {
+		if (garbage_pile > garbage_limit) {
 			valve_status = valve_off();
-			do error stuff;
+			error_report(status_message, "Insufficient number of consecutive reads\n\r");
 		}else {
 			if (sensor_read < m_low && !valve_status) {
 				valve_status = valve_on();
 				initial_read = sensor_read;
-				start timer
+				//start timer
 			};
 
 			if (valve_status && sensor_read > m_high){
 				valve_status = valve_off();
-				stop timer
+				//stop timer
 			};
 		};
 			
-		if (timer triggered) {
+		/*
+		if (timer_trigger) {
 			// If soil not getting any water:
 			if (|initial_read - sensor_read| < some_delta) {
 				valve_status = valve_off()
 				do error stuff;
 			};
 		};
+		*/
 
 		sprintf(status_message, "Sensor result: %d\n\r", sensor_read);
-		serial_put(status_message)
+		serial_put(status_message);
 		button_poll();
 	}
 }
