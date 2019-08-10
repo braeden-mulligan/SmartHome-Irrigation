@@ -1,6 +1,9 @@
 /*
 Author: Braeden Mulligan
 		braeden.mulligan@gmail.com
+
+This file contains subroutines to offer basic UI for debugging.
+It polls for a button press and will print messages over serial accordingly.
 */
 
 #include <stdbool.h>
@@ -10,7 +13,7 @@ Author: Braeden Mulligan
 #include "logger.h"
 #include "serial.h"
 
-//--- Button input polling for debugging.
+//--- Button input polling.
 void TIMER8_init() {
 	// Initialize internal LED off.
 	DDRB |= _BV(DDB5);
@@ -48,11 +51,10 @@ ISR(TIMER0_COMPA_vect) {
 	};
 }
 
-// Read and print to serial the 'log' buffer.
-void button_poll(char* log) {
+// Check if debug button was pressed to flush serial buffer.
+void button_poll() {
 	if (pressed) {
 		pressed = false;
-		serial_write(log);
+		UART_write();
 	};
 }
-//---

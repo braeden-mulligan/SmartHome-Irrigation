@@ -5,4 +5,4 @@ Author: Braeden Mulligan
 
 void TIMER8_init();
 
-void button_poll(char* log);
+void button_poll();

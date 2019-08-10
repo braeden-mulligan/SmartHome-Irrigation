@@ -27,8 +27,10 @@ void ADC_init() {
 }
 
 volatile short sensor_read = 0;
+//volatile bool read_done = false;
 ISR(ADC_vect) {
 	sensor_read = ADC;
+	//read_done = true;
 }
 //---
 
@@ -44,20 +46,92 @@ void TIMER16_init() {
 
 //ISR(TIMER1_COMPA_vect) {
 //}
+//---
+
+//--- Control logic.
+#define MOISTURE_TARGET 450
+#define MOISTURE_THRESHOLD 50
+
+bool valve_status;
+
+bool valve_off() {
+	PORTB &= ~_BV(DDB0);
+	return false;
+}
+
+bool valve_on() {
+	PORTB |= _BV(DDB0);
+	return true;
+}
+
+short initial_read = 0;
+short m_target = MOISTURE_TARGET;
+short m_low = MOISTURE_TARGET - MOISTURE_THRESHOLD;
+short m_high = MOISTURE_TARGET + MOISTURE_THRESHOLD;
+
+// Experimentally determined sensor reading range.
+// Consider moisture values outside of these bounds to be garbage.
+short m_min = 300;
+short m_max = 600;
 
 
 int main(void) {
+	// Set pin 8 output - off.
+	DDRB |= _BV(DDB0);
+	valve_status = valve_off();
 
+	char status_message[UART_BUFFER_SIZE / 4]; // Append up to 4 logs to serial bufer.
+
+	// Take average of last 3 readings.
+	//short sensor_avg[3] = {m_target, m_target, m_target};
+	short garbage_pile = 0; // Sensor read failure count.
+	short garbage_threshold = 1; // Complain if failure count exceeds this.
+
+	ADC_init();
 	UART_init();
 	TIMER8_init();
-	ADC_init();
 
-	char status_message[UART_BUFFER_SIZE];
 	while (true) {
-		sprintf(status_message, "Sensor result: %d\n\r", sensor_read);
-		ADC_convert();
-		button_poll(status_message);
-	}
+		// Clear logs that were not printed. 
+		tx_buffer_erase(); 
 
+		ADC_convert();
+
+		//if (read_done) {
+		if (sensor_read < m_min || sensor_read > m_max) {
+			garbage_pile++;
+		}else {
+			garbage_pile--;
+			if (garbage_pile < 0) garbage_pile = 0;
+		};
+
+		if (garbage_pile > garbage_threshold) {
+			valve_status = valve_off();
+			do error stuff;
+		}else {
+			if (sensor_read < m_low && !valve_status) {
+				valve_status = valve_on();
+				initial_read = sensor_read;
+				start timer
+			};
+
+			if (valve_status && sensor_read > m_high){
+				valve_status = valve_off();
+				stop timer
+			};
+		};
+			
+		if (timer triggered) {
+			// If soil not getting any water:
+			if (|initial_read - sensor_read| < some_delta) {
+				valve_status = valve_off()
+				do error stuff;
+			};
+		};
+
+		sprintf(status_message, "Sensor result: %d\n\r", sensor_read);
+		serial_put(status_message)
+		button_poll();
+	}
 }
 

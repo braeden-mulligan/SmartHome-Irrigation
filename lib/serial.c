@@ -29,6 +29,15 @@ bool tx_buffer_append(char c) {
 	return false;
 }
 
+void tx_buffer_erase() {
+	tx_cursor_send = 0;
+	tx_cursor_put = 0;
+	for (uint8_t j = 0; j < UART_BUFFER_SIZE; ++j) {
+		tx_buffer[0] = '\0';
+	}
+}
+
+
 void UART_transmit(char byte) {
 	while (!(UCSR0A & (1 << UDRE0))) {}
 	UDR0 = byte;
@@ -43,16 +52,16 @@ void UART_write() {
 	}while (tx_cursor_send != tx_cursor_put);
 }
 
-// Call this function as wrapper for sending serial data.
+// Call this function as wrapper for loading serial buffer.
 // Checks long strings for buffer overflow. 
-void serial_write(char* text) {
+void serial_put(char* text) {
 	uint8_t i = 0;
 	bool warning = false;
 	while (text[i] != '\0') {
 		if (warning) { 
 			UART_write();
 			//UART_transmit('\n'); UART_transmit('\r');
-			char error[UART_BUFFER_SIZE] = "ERROR: Buffer overflow.\n\r";
+			char error[UART_BUFFER_SIZE] = "* ERROR: Buffer overflow. *\n\r";
 			for (uint8_t j = 0; j < UART_BUFFER_SIZE; ++j) {
 				tx_buffer_append(error[j]);
 			}
@@ -62,5 +71,7 @@ void serial_write(char* text) {
 		warning = tx_buffer_append(text[i]);
 		++i;
 	}
-	UART_write();
 }
+
+
+
