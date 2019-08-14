@@ -13,7 +13,9 @@ Author: Braeden Mulligan
 #include "lib/logger.h"
 
 //--- Analogue to Digital.
-void ADC_convert() {
+void ADC_convert(uint8_t sensor_id) {
+	ADMUX &= ~(0x07); //Reset MUX select bits.
+	ADMUX |= sensor_id;
 	ADCSRA |= (1 << ADSC);
 }
 
@@ -22,8 +24,9 @@ void ADC_init() {
 	ADCSRA |= (1 << ADEN) | (1 << ADIE); 
 	ADCSRA |= (1 << ADPS0) | (1 << ADPS1) | (1 << ADPS2); 
 	DIDR0 = (1 << ADC0D);
+	DIDR0 = (1 << ADC0D);
 
-	ADC_convert();
+	ADC_convert(0);
 }
 
 volatile short sensor_read = 0;
@@ -51,8 +54,9 @@ ISR(TIMER1_COMPA_vect) {
 //---
 
 //--- Control logic.
-#define MOISTURE_TARGET 420
-#define MOISTURE_THRESHOLD 69
+#define MOISTURE_TARGET 400
+#define MOISTURE_THRESHOLD 55
+#define SENSOR_COUNT 2
 
 bool valve_status;
 
@@ -106,26 +110,30 @@ int main(void) {
 	DDRB |= _BV(DDB5);
 	PORTB &= ~_BV(DDB5);
 
-	char status_message[UART_BUFFER_SIZE / 2]; // Append up to 'divisor' logs to serial bufer.
+	char status_message[UART_BUFFER_SIZE / 4]; // Append up to 4 logs to serial bufer.
 
 	// Sensor read failure count.
 	short garbage_pile = 0; 
-	short garbage_limit = 1; // Allow one mis-read.
+	short garbage_limit = 1; // Allow 1 mis-read.
 
 	ADC_init();
 	UART_init();
 	TIMER8_init();
 
-	//uint8_t read_waits = 0;
+	short sensor_array[SENSOR_COUNT];
+	uint8_t sensor_id = 0;
+	uint8_t toggle_count = 0;
 	while (true) {
 		// Clear logs that were not printed. 
 		tx_buffer_erase(); 
 
-		ADC_convert();
-
 		if (read_done) {
+			sensor_array[sensor_id] = sensor_read;
+			sensor_id = (++sensor_id) % SENSOR_COUNT;
+
+			//TODO: Factor in all sensors
 			// Make sure there enough good "consecutive" reads.
-			if (sensor_read < m_min || sensor_read > m_max) {
+			if (sensor_array[0] < m_min || sensor_array[0] > m_max) {
 				garbage_pile++;
 			}else {
 				garbage_pile--;
@@ -134,21 +142,25 @@ int main(void) {
 			//sprintf(status_message, "Read attempts: %d\n\r", read_waits);
 			//serial_put(status_message);
 			read_done = false;
-			//read_waits = 0;
-		}//else { read_waits++; };
+			
+		}else { 
+			ADC_convert(sensor_id);
+		};
 
 		if (garbage_pile > garbage_limit) {
 			valve_status = valve_off();
-			error_report(status_message, "Insufficient number of consecutive reads\n\r");
+			error_report(status_message, "Consecutive reads fail\n\r");
 		}else {
-			if (sensor_read > m_high && !valve_status) {
+			if (sensor_array[0] > m_high && !valve_status) {
 				valve_status = valve_on();
 				initial_read = sensor_read;
+				toggle_count++;
 				//start timer
 			};
 
-			if (valve_status && sensor_read < m_low){
+			if (valve_status && sensor_array[0] < m_low){
 				valve_status = valve_off();
+				//TODO: observe for hysteresis in moisture value; overshoot?
 				//stop timer
 			};
 		};
@@ -163,7 +175,11 @@ int main(void) {
 		};
 		*/
 
-		sprintf(status_message, "Sensor result: %d\n\r", sensor_read);
+		for (uint8_t i = 0; i < SENSOR_COUNT; ++i) {
+			sprintf(status_message, "Sensor%d status: %d\n\r",i, sensor_array[i]);
+			serial_put(status_message);
+		};
+		sprintf(status_message, "Valve switch count: %d\n\r", toggle_count);
 		serial_put(status_message);
 		button_poll();
 	}
