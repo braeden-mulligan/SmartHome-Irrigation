@@ -9,9 +9,9 @@ It polls for a button press and will print messages over serial accordingly.
 #include <stdbool.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <util/delay.h>
 
 #include "logger.h"
-#include "serial.h"
 
 //--- Button input polling.
 void TIMER8_init() {
@@ -38,7 +38,7 @@ uint8_t timer8_count = 0;
 volatile bool pressed = false;
 volatile bool held = false;
 ISR(TIMER0_COMPA_vect) {
-	if (timer8_count < 3) { // Scale timer to poll every 50ms.
+	if (timer8_count < 3) { // Scale timer to poll every ~50ms.
 		++timer8_count;
 	}else {
 		if (!(PINB & _BV(DDB4))) {
@@ -55,6 +55,33 @@ ISR(TIMER0_COMPA_vect) {
 	};
 }
 
+void log_clear() {
+	tx_buffer_erase(); 
+}
+
+void log_append(char* info){
+	serial_put(info);
+}
+
+void blink_LED() {
+	PORTB |= _BV(DDB5);
+	_delay_ms(500);
+	PORTB &= ~_BV(DDB5);
+	_delay_ms(500);
+}
+
+//TODO: Blink LED via 8 bit timer. Cause system stoppage for now. 
+void log_error(char* info){
+	TIMER8_halt();
+	serial_put(info);
+	while (true) {
+		UART_write();
+		for (int i = 0; i < 5; ++i) {
+			blink_LED();
+		}
+	}
+}
+
 // Check if debug button was pressed to flush serial buffer.
 void button_poll() {
 	if (pressed) {
@@ -62,3 +89,9 @@ void button_poll() {
 		UART_write();
 	};
 }
+
+void LOGGER_init() {
+	UART_init();
+	TIMER8_init();
+}
+

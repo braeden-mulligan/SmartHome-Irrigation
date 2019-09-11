@@ -9,15 +9,8 @@ Author: Braeden Mulligan
 
 void UART_init();
 
-//bool tx_buffer_append(char c);
-
 void tx_buffer_erase();
 
-//void UART_transmit(char byte);
-
-// Flush tx_buffer.
 void UART_write();
 
-// Call this function as wrapper for sending serial data.
-// Checks long strings for buffer overflow. 
 void serial_put(char* text);
