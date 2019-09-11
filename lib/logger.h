@@ -3,8 +3,17 @@ Author: Braeden Mulligan
 		braeden.mulligan@gmail.com
 */
 
-void TIMER8_init();
+#include "serial.h"
 
-void TIMER8_halt();
+// Guarantee 4 logs can be queued.
+char log_buffer[UART_BUFFER_SIZE / 4]; 
+
+void LOGGER_init();
+
+void log_clear();
+
+void log_append(char* info);
+
+void log_error(char* info);
 
 void button_poll();
