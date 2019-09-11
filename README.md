@@ -17,7 +17,7 @@ Once the moisture falls below a threshold, the water valve is opened and water f
 Some minor additional hardware features exist as rudimentary UI and to assist in debugging.
 These include functions and a button to let the Arduino send serial data when triggered, and an LED to indicate operation status.
 The Arduino Uno's onboard LED is also used for visual indication of controller status.
-A circuit diagram is shown below.
+An approximate diagram of the setup is shown below.
 [<img src="wiring_diagram.png" hspace="20">](#schematic)
 Currently 2 moisture sensors are being used. Without external multiplexing, up to 6 can be used via pins A0 to A5.
 	
