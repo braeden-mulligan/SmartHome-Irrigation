@@ -43,6 +43,7 @@ void UART_transmit(char byte) {
 	UDR0 = byte;
 }
 
+// Flush tx_buffer.
 void UART_write() {
 	do { 
 		if (tx_cursor_send >= UART_BUFFER_SIZE) tx_cursor_send = 0;
@@ -52,7 +53,7 @@ void UART_write() {
 	}while (tx_cursor_send != tx_cursor_put);
 }
 
-// Call this function as wrapper for loading serial buffer.
+// Call this function as wrapper for writing serial data.
 // Checks long strings for buffer overflow. 
 void serial_put(char* text) {
 	uint8_t i = 0;
