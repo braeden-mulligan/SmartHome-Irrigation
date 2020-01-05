@@ -1,22 +1,39 @@
+CC := avr-gcc
+CFLAGS := -std=c99 -I include -Os -DF_CPU=16000000UL -mmcu=atmega328p -c 
+LFLAGS := -std=c99 -mmcu=atmega328p
+
+MAIN := main.c
+#SRC := $(wildcard ./src/*.c)
+#SRC := $(shell find ./src -name *.c)
+OBJS := main.o logger.o
+LIBS := serial.o 
+TARGET := irrigation_controller
+
 CRUFT = *.elf *.hex *.lst *.o *.as
-LIBS = serial.o logger.o
 
-all: clean controller upload
+all: clean target upload
 
-controller: libraries
-	avr-gcc -std=c99 -Os -DF_CPU=16000000UL -mmcu=atmega328p -c -o controller.o controller.c
-	avr-gcc -std=c99 -mmcu=atmega328p -o controller.elf controller.o $(LIBS)
-	avr-objcopy -O ihex -R .eeprom controller.elf controller.hex
+target: sources libraries 
+	@echo "Making $(TARGET)..."
+	$(CC) $(CFLAGS) -o $(OBJS) $(MAIN)
+	$(CC) $(LFLAGS) -o $(TARGET).elf $(OBJS) $(LIBS)
+	avr-objcopy -O ihex -R .eeprom $(TARGET).elf $(TARGET).hex
+
+sources:
+	@echo "Making object files..." 
+	$(CC) $(CFLAGS) -o logger.o ./logger.c
 
 libraries:
-	avr-gcc -std=c99 -Os -DF_CPU=16000000UL -mmcu=atmega328p -c -o serial.o lib/serial.c 
-	avr-gcc -std=c99 -Os -DF_CPU=16000000UL -mmcu=atmega328p -c -o logger.o lib/logger.c 
+	@echo "Making libraries..." 
+	$(CC) $(CFLAGS) -o serial.o lib/serial.c
 
 assembly:
-	avr-gcc -std=c99 -Os -DF_CPU=16000000UL -mmcu=atmega328p -S -o controller.as controller.c
+	avr-gcc -std=c99 -Os -DF_CPU=16000000UL -mmcu=atmega328p -S -o $(TARGET).as $(TARGET).c
 
 upload:
-	sudo avrdude -F -V -c arduino -p ATMEGA328P -P /dev/ttyACM0 -b 115200 -U flash:w:controller.hex
+	sudo avrdude -F -V -c arduino -p ATMEGA328P -P /dev/ttyACM0 -b 115200 -U flash:w:$(TARGET).hex
 
+.PHONY: clean
 clean:
+	@echo "Cleaning..."
 	rm -f $(CRUFT)

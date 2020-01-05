@@ -8,8 +8,9 @@ Author: Braeden Mulligan
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#include "lib/logger.h"
+#include "logger.h"
 
+#define ever ;;
 #define ABS(x) x > 0 ? x : -x
 // Experimentally determined range of sensor readings.
 // Consider moisture values outside of these bounds to be garbage.
@@ -133,7 +134,7 @@ void moisture_control() {
 
 	short m_avg = 0;
 
-	for (;;) {
+	for (ever) {
 		// Clear logs that were not printed. 
 		log_clear();
 
