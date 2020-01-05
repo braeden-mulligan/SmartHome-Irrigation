@@ -60,7 +60,7 @@ void log_clear() {
 }
 
 void log_append(char* info){
-	serial_put(info);
+	serial_puts(info);
 }
 
 void blink_LED() {
@@ -73,9 +73,9 @@ void blink_LED() {
 //TODO: Blink LED via 8 bit timer. Cause system stoppage for now. 
 void log_error(char* info){
 	TIMER8_halt();
-	serial_put(info);
+	serial_puts(info);
 	while (true) {
-		UART_write();
+		serial_print();
 		for (int i = 0; i < 5; ++i) {
 			blink_LED();
 		}
@@ -86,12 +86,12 @@ void log_error(char* info){
 void button_poll() {
 	if (pressed) {
 		pressed = false;
-		UART_write();
+		serial_print();
 	};
 }
 
 void LOGGER_init() {
-	UART_init();
+	UART_init(true, false);
 	TIMER8_init();
 }
 
