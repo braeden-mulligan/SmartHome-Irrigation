@@ -8,7 +8,7 @@ Author: Braeden Mulligan
 // Guarantee 4 logs can be queued.
 char log_buffer[TX_BUFFER_SIZE / 4]; 
 
-void LOGGER_init();
+void logger_init();
 
 void log_clear();
 

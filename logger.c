@@ -90,7 +90,7 @@ void button_poll() {
 	};
 }
 
-void LOGGER_init() {
+void logger_init() {
 	UART_init(true, false);
 	TIMER8_init();
 }
