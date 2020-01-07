@@ -35,12 +35,12 @@ void control_loop() {
 		log_clear();
 		m_level = moisture_check();
 
-		if (m_level == 0) {
+		if (m_level < 0) {
 		//if (m_level is error value) {
 			//TODO: do something sensible here.
 			valve_status = valve_off();
 			//TODO: log_error()
-			_delay_ms(10000);
+			_delay_ms(1000);
 		}else {
 			if (m_level > m_dry && !valve_status) {
 				valve_status = valve_on();
@@ -54,7 +54,7 @@ void control_loop() {
 		}
 
 		for (uint8_t i = 0; i < SENSOR_COUNT; ++i) {
-			sprintf(log_buffer, "Sensor%d status: %d\n\r",i, sensor_array[i]);
+			sprintf(log_buffer, "Sensor%d status: %d\n\r",i , sensor_array[i]);
 			log_append(log_buffer);
 		};
 
@@ -88,10 +88,6 @@ int main(void) {
 	DDRB |= _BV(DDB5);
 	PORTB &= ~_BV(DDB5);
 
-/*
-	UART_init();
-	TIMER8_init();
-*/
 	logger_init();
 	hardware_init(3);
 

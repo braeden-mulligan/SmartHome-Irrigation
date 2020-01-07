@@ -41,6 +41,14 @@ ISR(TIMER0_COMPA_vect) {
 	if (timer8_count < 3) { // Scale timer to poll every ~50ms.
 		++timer8_count;
 	}else {
+		while (rx_available()) {
+			char c = serial_getc(false);
+			if (c == 'b') pressed = true;
+		}
+		timer8_count = 0;
+	}
+	/*
+	}else {
 		if (!(PINB & _BV(DDB4))) {
 			PORTB |= _BV(DDB5);
 			if (!held) {
@@ -53,6 +61,7 @@ ISR(TIMER0_COMPA_vect) {
 		};
 		timer8_count = 0;
 	};
+	*/
 }
 
 void log_clear() {
@@ -86,12 +95,17 @@ void log_error(char* info){
 void button_poll() {
 	if (pressed) {
 		pressed = false;
+		/*
+		PORTB |= _BV(DDB5);
+		_delay_ms(1000);
+		PORTB &= ~_BV(DDB5);
+		*/
 		serial_print();
 	};
 }
 
 void logger_init() {
-	UART_init(true, false);
+	UART_init(true, true);
 	TIMER8_init();
 }
 
