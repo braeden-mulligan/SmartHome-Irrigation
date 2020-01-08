@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <util/delay.h>
 
 #include "hardware.h"
 
@@ -8,6 +9,19 @@
 // Consider moisture values outside of these bounds to be garbage.
 #define SENSOR_MIN 280
 #define SENSOR_MAX 620
+
+// Compiler expects constant for _delay_ms() argument.
+// Specify the blink period in tenths of a second.
+void blink_LED(short period_tenths) {
+	PORTB |= _BV(DDB5);
+	for (short i = 0; i < period_tenths; ++i) {
+		_delay_ms(50);
+	}
+	PORTB &= ~_BV(DDB5);
+	for (short i = 0; i < period_tenths; ++i) {
+		_delay_ms(50);
+	}
+}
 
 uint8_t sensor_id = 0;
 

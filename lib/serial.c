@@ -133,6 +133,11 @@ void serial_puts(char* text) {
 	}
 }
 
+void serial_write(char* text) {
+	serial_puts(text);
+	serial_print();
+}
+
 /* 
 	**
 	* UART Receive functions.

@@ -4,6 +4,7 @@ Author: Braeden Mulligan
 */
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <avr/io.h>
 #include <util/delay.h>
@@ -14,13 +15,11 @@ Author: Braeden Mulligan
 #define eternity ;;
 #define ABS(x) x > 0 ? x : -x
 
-//--- Control logic.
 #define MOISTURE_TARGET 400
 #define MOISTURE_THRESHOLD 55
 #define MOISTURE_DELTA 3 // Account for jitter between readings.
 #define SELF_ADJUST 5
 #define SENSOR_COUNT 2
-
 
 short m_target = MOISTURE_TARGET;
 short m_damp = MOISTURE_TARGET - MOISTURE_THRESHOLD;
@@ -45,7 +44,7 @@ void control_loop() {
 			if (m_level > m_dry && !valve_status) {
 				valve_status = valve_on();
 				//TODO: start timer()
-				};
+			};
 			if (valve_status && m_level < m_damp){
 				valve_status = valve_off();
 				//TODO: observe for hysteresis in moisture value; overshoot?
@@ -53,12 +52,13 @@ void control_loop() {
 			};	
 		}
 
+		log_append("Debugging info:\r\n");
+		char tmp_buffer[32];
 		for (uint8_t i = 0; i < SENSOR_COUNT; ++i) {
-			sprintf(log_buffer, "Sensor%d status: %d\n\r",i , sensor_array[i]);
-			log_append(log_buffer);
+			sprintf(tmp_buffer, "Sensor%d status: %d\r\n", i, sensor_array[i]);
+			log_append(tmp_buffer);
 		};
-
-		button_poll();
+		command_poll();
 	}
 /*
 // start timer() {

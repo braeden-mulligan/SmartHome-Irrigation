@@ -2,110 +2,63 @@
 Author: Braeden Mulligan
 		braeden.mulligan@gmail.com
 
-This file contains subroutines to offer basic UI for debugging.
-It polls for a button press and will print messages over serial accordingly.
 */
 
 #include <stdbool.h>
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#include <util/delay.h>
 
+#include "hardware.h"
 #include "logger.h"
+#include "serial.h"
 
-//--- Button input polling.
-void TIMER8_init() {
-	// Initialize internal LED off.
-	DDRB |= _BV(DDB5);
-	PORTB &= ~_BV(DDB5);
-
-	// Set pin 12 input.
-	DDRB &= ~_BV(DDB4);
-	PORTB |= _BV(DDB4);
-
-	//TCCR0A |= (1 << WGM01);
-	TIMSK0 |= (1 << OCIE0A); 
-	//OCR0A = 13;
-	sei(); 
-	TCCR0B |= (1 << CS02) | (1 << CS00);
-}
-
-void TIMER8_halt() {
-	TIMSK0 &= ~(1 << OCIE0A);
-}
-
-uint8_t timer8_count = 0;
-volatile bool pressed = false;
-volatile bool held = false;
-ISR(TIMER0_COMPA_vect) {
-	if (timer8_count < 3) { // Scale timer to poll every ~50ms.
-		++timer8_count;
-	}else {
-		while (rx_available()) {
-			char c = serial_getc(false);
-			if (c == 'b') pressed = true;
-		}
-		timer8_count = 0;
-	}
-	/*
-	}else {
-		if (!(PINB & _BV(DDB4))) {
-			PORTB |= _BV(DDB5);
-			if (!held) {
-				pressed = true;
-				held = true;
-			};
-		}else {
-			PORTB &= ~_BV(DDB5);
-			held = false;
-		};
-		timer8_count = 0;
-	};
-	*/
-}
+short log_tail = 0;
+bool log_full = false;
 
 void log_clear() {
-	tx_buffer_erase(); 
+	log_tail = 0;
+	log_full = false;
+	log_buffer[0] = '\0';
+	log_buffer[LOG_BUFFER_SIZE - 1] = '\0';
 }
 
+// Simply overwrite buffer for now.
+//TODO:
 void log_append(char* info){
-	serial_puts(info);
-}
-
-void blink_LED() {
-	PORTB |= _BV(DDB5);
-	_delay_ms(500);
-	PORTB &= ~_BV(DDB5);
-	_delay_ms(500);
-}
-
-//TODO: Blink LED via 8 bit timer. Cause system stoppage for now. 
-void log_error(char* info){
-	TIMER8_halt();
-	serial_puts(info);
-	while (true) {
-		serial_print();
-		for (int i = 0; i < 5; ++i) {
-			blink_LED();
-		}
+	for (short i = 0; info[i] != '\0'; ++i) {
+		if (log_tail >= LOG_BUFFER_SIZE - 2) {
+			log_tail = 0;
+			log_full = true;
+		};
+		log_buffer[log_tail] = info[i];
+		++log_tail;
 	}
+	log_buffer[log_tail] = '\0';
+	++log_tail;
 }
 
-// Check if debug button was pressed to flush serial buffer.
-void button_poll() {
-	if (pressed) {
-		pressed = false;
-		/*
-		PORTB |= _BV(DDB5);
-		_delay_ms(1000);
-		PORTB &= ~_BV(DDB5);
-		*/
+// Flush log buffer.
+void log_print() {
+	if (log_full) log_tail = LOG_BUFFER_SIZE - 1;
+	for (short i = 0; i < log_tail; ++i) {
+		//if (!(i % TX_BUFFER_SIZE)) serial_write(log_buffer + i);
+		serial_putc(log_buffer[i]);
 		serial_print();
-	};
+	}
+	log_clear();
+}
+
+void command_poll() {
+	while (rx_available()) {
+		char c = serial_getc(false);
+		if (c >= 'a' || c <= 'Z') {
+			log_print();
+			for (short i = 0; i < 3; ++i) {
+				blink_LED(5);
+			}
+		};
+	}
 }
 
 void logger_init() {
 	UART_init(true, true);
-	TIMER8_init();
 }
 
