@@ -3,9 +3,11 @@ Author: Braeden Mulligan
         braeden.mulligan@gmail.com
 */
 
+#include <stdint.h>
+
 // Set this flag to true to use interrupt-driven serial transmissions.
 // Otherwise compile with a synchronous, busy-wait blocking design.
-#define TX_INTERRUPT true 
+#define TX_INTERRUPT false
 //TODO: timouts for non-interrupt transmits
 //TODO interrupt driven vs polling/timeouts for receive
 
@@ -26,6 +28,8 @@ void serial_putc(char byte);
 void serial_puts(char* text);
 
 void serial_print();
+
+void serial_write(char* text);
 
 char serial_getc(bool peek);
 

@@ -5,15 +5,17 @@ Author: Braeden Mulligan
 
 #include "serial.h"
 
-// Guarantee 4 logs can be queued.
-char log_buffer[TX_BUFFER_SIZE / 4]; 
+// Consider ATmega328p only has 2KiB of memory.
+#define LOG_BUFFER_SIZE 256
 
-void LOGGER_init();
+char log_buffer[LOG_BUFFER_SIZE]; 
+
+void logger_init();
 
 void log_clear();
 
 void log_append(char* info);
 
-void log_error(char* info);
+//void log_error(char* info);
 
-void button_poll();
+void command_poll();
