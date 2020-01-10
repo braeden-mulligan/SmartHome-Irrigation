@@ -9,6 +9,7 @@
 // Consider moisture values outside of these bounds to be garbage.
 #define SENSOR_MIN 280
 #define SENSOR_MAX 620
+#define SENSOR_COUNT 2
 
 // Compiler expects constant for _delay_ms() argument.
 // Specify the blink period in tenths of a second.

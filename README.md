@@ -5,7 +5,7 @@ The project is built using an Arduino Uno and designed to monitor the soil moist
 ## Documentation
 #### Toolchain
 Source code is written in C using the [AVR C library](https://www.nongnu.org/avr-libc/) designed for Atmel chips.
-The toolchain requires avr-libc and consisds of GCC for AVR to compile source into a hex file.
+The toolchain requires avr-libc and consists of GCC for AVR to compile source into a hex file.
 The machine code is then uploaded via USB to the ATmega chip using the [AVRdude](https://www.nongnu.org/avrdude/) tool. 
 The build process can be seen in the provided make file.
 	

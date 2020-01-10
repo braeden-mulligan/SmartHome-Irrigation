@@ -13,13 +13,12 @@ Author: Braeden Mulligan
 #include "logger.h"
 
 #define eternity ;;
-#define ABS(x) x > 0 ? x : -x
+#define abs(x) x > 0 ? x : -x
 
 #define MOISTURE_TARGET 400
 #define MOISTURE_THRESHOLD 55
 #define MOISTURE_DELTA 3 // Account for jitter between readings.
 #define SELF_ADJUST 5
-#define SENSOR_COUNT 2
 
 short m_target = MOISTURE_TARGET;
 short m_damp = MOISTURE_TARGET - MOISTURE_THRESHOLD;
@@ -71,7 +70,7 @@ if damp < min_damp
 	stop timer
 	return;
 while abs(initial_read - sensor_read) > delta
-	reset timer
+	reset timer count
 		if (timer_trigger) {
 			// count++
 			if count > x, adjust threshold low
