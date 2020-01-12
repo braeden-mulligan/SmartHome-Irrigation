@@ -84,9 +84,19 @@ while abs(initial_read - sensor_read) > delta
 */
 }
 
+char buf[32];
+volatile bool timer_running = true;
 int count = 0;
 void test_func(void) {
+	sprintf(buf, "Count is %d.\r\n", count);
+	serial_write(buf);
 	count++;
+	if (count > 2) {
+		timer16_stop();
+		serial_write("Stopping timer.\r\n");
+		count = 0;
+		timer_running = false;
+	};
 }
 	
 int main(void) {
@@ -97,26 +107,14 @@ int main(void) {
 	logger_init();
 	hardware_init(3);
 
-	timer8_init(1000, &test_func);
-	timer8_start();
+	timer16_init(1, &test_func);
+	timer16_start();
 	while (true) {
-		if (timer8_flag) {
-			char buf[32];
-			LED_blink(3);
-			timer8_flag = false;
-			sprintf(buf, "Count is %d.\r\n", count);
-			serial_write(buf);
-		};
-		if (count > 2) {
-			timer8_stop();
-			serial_write("Stopping timer.\r\n");
-			count = 0;
-			for (uint8_t i = 0; i < 5; ++i) {
-				LED_blink(3);
-			};
-			_delay_ms(1000);
+		if (!timer_running) {
+			_delay_ms(2000);
 			serial_write("Restarting timer.\r\n");
-			timer8_start();
+			timer16_start();
+			timer_running = true;
 		};
 	}
 

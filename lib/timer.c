@@ -7,43 +7,19 @@
 #include "timer.h"
 
 #define timer8_MAX_MS 10
+#define timer16_MAX_S 4
 
-/*
-void timer16_init(short period, short period_scale) {
-	timer16_period_scale = period_scale;
-	timer16_flag = false;
-	TCCR1B = (1 << WGM12); 
-	//OCR1A = 785; 
-	OCR1A = period; 
-	TIMSK1 = (1 << OCIE1A); 
-	sei(); 
-	TCCR1B |= (1 << CS10) | (1 << CS12);
-}
+uint16_t timer8_cycle_count = 0;
+uint16_t timer8_period_scale = 0;
 
-ISR(TIMER1_COMPA_vect) {
-	if (timer16_period_count < timer16_period_scale)
-		++timer16_period_count;
-	}else {
-		timer16_flag = true;
-		timer16_period_count = 0;
-	};
-}
+void (* volatile timer8_routine)(void) = NULL;
 
-void timer16_halt(){
-}
-
-void timer16_start(){
-}
-*/
-
-short timer8_cycle_count = 0;
-short timer8_period_scale = 0;
-
-// This function seems to be of limited capability.
-void (* volatile timer_routine)(void) = NULL;
-
-// Above 10 ms we only get timer increments in multiples of 10. eg. 76ms becomes 70ms.
-void timer8_init(short period_ms, void (* volatile custom_routine)(void)) {
+// Above <period_ms> of 10 ms we only get timer increments every multiple of 10.
+//   eg. 76ms truncates to 70ms, 214ms truncates to 210ms, etc.
+// This keeps ISR overhead low by default given current timer implementation.
+// <custom_routine> must be used to handle more precise intervals down to 
+//   ~1ms resolution if needed.
+void timer8_init(uint16_t period_ms, void (* volatile custom_routine)(void)) {
 	// This gives us approximate number of clock ticks for 1ms with current prescaler. 
 	uint8_t clk_count;
 	if (period_ms > timer8_MAX_MS) {
@@ -51,12 +27,12 @@ void timer8_init(short period_ms, void (* volatile custom_routine)(void)) {
 		// This gives us approximate number of clock ticks for 1ms with current prescaler. 
 		clk_count = timer8_MAX_MS * 15;
 	}else {
-		clk_count = (uint8_t)period_ms;
+		clk_count = (uint8_t)(period_ms * 15);
 	};
 
 	timer8_flag = false;
 	cli();
-	timer_routine = custom_routine;
+	timer8_routine = custom_routine;
 
 	OCR0A = clk_count;
 	TCCR0A |= (1 << WGM01);
@@ -78,7 +54,48 @@ ISR(TIMER0_COMPA_vect) {
 		++timer8_cycle_count;
 	}else {
 		timer8_flag = true;
-		if (timer_routine != NULL) timer_routine();
+		if (timer8_routine != NULL) timer8_routine();
 		timer8_cycle_count = 0;
 	};
 }
+
+
+uint16_t timer16_cycle_count = 0;
+uint16_t timer16_period_scale = 0;
+
+void (* volatile timer16_routine)(void) = NULL;
+
+void timer16_init(uint16_t period_s, void (* volatile custom_routine)(void)) {
+	// Count clock ticks to 1 second.
+	uint16_t clk_count = 15625;
+	timer16_period_scale = period_s - 1;
+
+	timer16_flag = false;
+	cli();
+	timer16_routine = custom_routine;
+
+	TCCR1B |= (1 << WGM12); 
+	OCR1A = clk_count;
+	TIMSK1 |= (1 << OCIE1A); 
+	sei(); 
+}
+
+void timer16_start(){
+	TCCR1B |= (1 << CS10) | (1 << CS12);
+}
+
+void timer16_stop(){
+	TCCR1B &= ~((1 << CS10) | (1 << CS12));
+	TCNT1 = 0;
+}
+
+ISR(TIMER1_COMPA_vect) {
+	if (timer16_cycle_count < timer16_period_scale) {
+		++timer16_cycle_count;
+	}else {
+		timer16_flag = true;
+		if (timer16_routine != NULL) timer16_routine();
+		timer16_cycle_count = 0;
+	};
+}
+

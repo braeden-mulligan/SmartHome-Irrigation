@@ -22,14 +22,13 @@ void LED_off() {
 
 // Compiler expects constant for _delay_ms() argument.
 // Specify the blink period in tenths of a second.
-void LED_blink(short period_tenths) {
-	if (period_tenths <= 0) return;
+void LED_blink(uint16_t period_tenths) {
 	LED_on();
-	for (short i = 0; i < period_tenths; ++i) {
+	for (uint16_t i = 0; i < period_tenths; ++i) {
 		_delay_ms(50);
 	}
 	LED_off();
-	for (short i = 0; i < period_tenths; ++i) {
+	for (uint16_t i = 0; i < period_tenths; ++i) {
 		_delay_ms(50);
 	}
 }
@@ -86,6 +85,7 @@ void ADC_convert(uint8_t sensor_id) {
 // Make sure there enough good "consecutive" reads.
 //TODO: per-sensor error checking.
 bool ADC_verify(uint8_t id) {
+	if (read_failure_limit < 0) return true;
 	if (sensor_read < SENSOR_MIN || sensor_read > SENSOR_MAX) {
 		read_failures++;
 		return false;
@@ -122,7 +122,7 @@ short sensor_average(short* array) {
 		return (sum / d);
 	}else {
 		return -1;
-	}
+	};
 }
 
 short moisture_check() {
