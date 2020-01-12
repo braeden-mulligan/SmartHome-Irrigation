@@ -52,7 +52,7 @@ void command_poll() {
 		if (c >= 'a' || c <= 'Z') {
 			log_print();
 			for (short i = 0; i < 3; ++i) {
-				blink_LED(5);
+				LED_blink(5);
 			}
 		};
 	}

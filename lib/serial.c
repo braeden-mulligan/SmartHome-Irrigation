@@ -48,8 +48,6 @@ ISR(USART_TX_vect) {
 		++tx_head;
 		if (tx_head >= TX_BUFFER_SIZE) tx_head = 0;
 		if (tx_head == tx_tail) tx_empty = true;
-	//}else {
-	//	UCSR0B &= ~(1 << UDRIE0);
 	};
 }
 #else

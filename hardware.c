@@ -11,14 +11,24 @@
 #define SENSOR_MAX 620
 #define SENSOR_COUNT 2
 
+// Onboard LED controls.
+void LED_on() {
+	PORTB |= _BV(DDB5);
+}
+
+void LED_off() {
+	PORTB &= ~_BV(DDB5);
+}
+
 // Compiler expects constant for _delay_ms() argument.
 // Specify the blink period in tenths of a second.
-void blink_LED(short period_tenths) {
-	PORTB |= _BV(DDB5);
+void LED_blink(short period_tenths) {
+	if (period_tenths <= 0) return;
+	LED_on();
 	for (short i = 0; i < period_tenths; ++i) {
 		_delay_ms(50);
 	}
-	PORTB &= ~_BV(DDB5);
+	LED_off();
 	for (short i = 0; i < period_tenths; ++i) {
 		_delay_ms(50);
 	}
@@ -31,14 +41,14 @@ volatile bool read_done = false;
 short read_failures = 0;
 short read_failure_limit = 0;
 
-bool valve_off() {
-	PORTB &= ~_BV(DDB0);
-	return false;
-}
-
 bool valve_on() {
 	PORTB |= _BV(DDB0);
 	return true;
+}
+
+bool valve_off() {
+	PORTB &= ~_BV(DDB0);
+	return false;
 }
 
 void ADC_init() {
