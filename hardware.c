@@ -121,13 +121,13 @@ short sensor_average(short* array) {
 	if (d) {
 		return (sum / d);
 	}else {
-		return -1;
+		return 0;
 	};
 }
 
 short moisture_check() {
 	if (read_done) {
-		ADC_verify(sensor_id);
+		if (!ADC_verify(sensor_id)) return -1;
 		sensor_array[sensor_id] = calibrated_read(sensor_id, sensor_read);
 		sensor_id = (++sensor_id) % SENSOR_COUNT;
 		read_done = false;
