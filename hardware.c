@@ -56,8 +56,19 @@ void ADC_init() {
 	ADCSRA |= (1 << ADPS0) | (1 << ADPS1) | (1 << ADPS2); 
 	DIDR0 = (1 << ADC0D);
 	DIDR0 = (1 << ADC0D);
-	//ADC_convert(0);
 }
+
+void ADC_convert(uint8_t sensor_id) {
+	ADMUX &= ~(0x07); //Reset MUX select bits.
+	ADMUX |= sensor_id;
+	ADCSRA |= (1 << ADSC);
+}
+
+ISR(ADC_vect) {
+	sensor_read = ADC;
+	read_done = true;
+}
+
 
 void hardware_init(short failure_limit) {
 	ADC_init();
@@ -68,18 +79,8 @@ void hardware_init(short failure_limit) {
 	for (uint8_t i = 0; i < SENSOR_COUNT; ++i) {
 		sensor_array[i] = 0;
 	}
-}
 
-
-ISR(ADC_vect) {
-	sensor_read = ADC;
-	read_done = true;
-}
-
-void ADC_convert(uint8_t sensor_id) {
-	ADMUX &= ~(0x07); //Reset MUX select bits.
-	ADMUX |= sensor_id;
-	ADCSRA |= (1 << ADSC);
+	ADC_convert(sensor_id);
 }
 
 // Make sure there enough good "consecutive" reads.
@@ -88,6 +89,7 @@ bool ADC_verify(uint8_t id) {
 	if (read_failure_limit < 0) return true;
 	if (sensor_read < SENSOR_MIN || sensor_read > SENSOR_MAX) {
 		read_failures++;
+		if (read_failures > 2 * read_failure_limit) read_failures = 2 * read_failure_limit;
 		return false;
 	}else {
 		read_failures--;
@@ -112,7 +114,7 @@ short calibrated_read(uint8_t id, short sensor_val){
 short sensor_average(short* array) {
 	short sum = 0;
 	short d = 0;
-	for (int i = 0; i < SENSOR_COUNT; ++i) {
+	for (uint8_t i = 0; i < SENSOR_COUNT; ++i) {
 		if (array[i] > SENSOR_MIN && array[i] < SENSOR_MAX) {
 			sum += array[i];
 			++d;
@@ -127,13 +129,14 @@ short sensor_average(short* array) {
 
 short moisture_check() {
 	if (read_done) {
-		if (!ADC_verify(sensor_id)) return -1;
+		if (!ADC_verify(sensor_id)) return -2;
 		sensor_array[sensor_id] = calibrated_read(sensor_id, sensor_read);
 		sensor_id = (++sensor_id) % SENSOR_COUNT;
 		read_done = false;
 		ADC_convert(sensor_id);
+		return sensor_average(sensor_array);
 	};
-	return sensor_average(sensor_array);
+	return -1;
 	//TODO: return failure values
 }
 

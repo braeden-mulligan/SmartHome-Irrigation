@@ -28,67 +28,83 @@ short m_dry = MOISTURE_TARGET + MOISTURE_THRESHOLD;
 
 bool valve_status = false;
 
+short m_status;
 short m_level;
 short m_initial;
-bool moisture_change = false;
+bool m_change = false;
 
-//TODO: placeholder for better error handling.
 bool limp_mode = false;
-
-void check_for_change(void) {
-	short diff = m_initial - m_level; 
-	if (abs(diff) > MOISTURE_DELTA) moisture_change = true;
+void enter_limp_mode() {
+	valve_status = valve_off();
+	limp_mode = true;
 }
+
+void check_moisture_change(void) {
+	short diff = m_initial - m_level; 
+	if (abs(diff) > MOISTURE_DELTA) m_change = true;
+}
+
+//TODO: Debugging purposes.
+char print_ready = '\0';
+char msg[32];
 
 void control_loop() {
 	for (eternity) {
-		if (limp_mode) {
-			//LED_blink(1000);
-			continue;
-		}; 
+		if (print_ready == 'e') {
+			sprintf(msg, "Error status: %d", m_status);
+			log_append(msg);
+		}
+		if (print_ready == 's') {
+			sprintf(msg, "Average moisture: %d", m_level);
+			log_append(msg);
+		};
+		if (print_ready == 'm') {
+			if (limp_mode) {
+		 		log_append("Running in limp mode");
+			}else {
+				log_append("Running in normal mode");
+			};
+		};
+		if (print_ready != '\0') log_print();
+		print_ready = command_poll();
 
-		//log_clear();
-		m_level = moisture_check();
-		if (m_level > 0) {
+		m_status = moisture_check();
+		if (m_status > 0) m_level = m_status;
+
+		if (m_status < -1 || limp_mode) {
+			//TODO: do something sensible here.
+			//check error codes
+			//exit limp_mode conditions.
+			if (limp_mode) continue;
+			enter_limp_mode();
+		}else {
 			if (m_level > m_dry && !valve_status) {
 				valve_status = valve_on();
 				m_initial = m_level;
-				moisture_change = false;
-				timerx_start();
+				m_change = false;
+				timer16_start();
 			};
 			if (valve_status && m_level < m_damp){
 				valve_status = valve_off();
-				timerx_stop();
+				timer16_stop();
+				timer16_flag = false;
 				//TODO: observe for hysteresis in moisture value; overshoot?
 			};	
-		}else {
-			//TODO: do something sensible here.
-			//check error case
-			valve_status = valve_off();
-			limp_mode = true;
 		};
 
-		if (timerx_flag) {
-			timerx_stop();
-			if (!moisture_change) {
+		if (timer16_flag) {
+			timer16_stop();
+			if (!m_change) {
 				//something fucky going on
-				limp_mode = true;
-			};
-			timerx_flag = false;
+				enter_limp_mode();
+			}
+			timer16_flag = false;
 		};
-
-/*
-		log_append("Debugging info:\r\n");
-		char tmp_buffer[32];
-		for (uint8_t i = 0; i < SENSOR_COUNT; ++i) {
-			sprintf(tmp_buffer, "Sensor%d status: %d\r\n", i, sensor_array[i]);
-			log_append(tmp_buffer);
-		};
-		command_poll();
-		if (!valve_status) sleep();
-*/
+		//if (!valve_status) sleep();
 	}
 }
+
+	
 	
 int main(void) {
 	// Set internal LED off.

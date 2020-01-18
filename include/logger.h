@@ -16,6 +16,6 @@ void log_clear();
 
 void log_append(char* info);
 
-//void log_error(char* info);
+void log_print();
 
-void command_poll();
+char command_poll();

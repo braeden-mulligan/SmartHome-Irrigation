@@ -12,14 +12,14 @@
 uint16_t timer8_cycle_count = 0;
 uint16_t timer8_period_scale = 0;
 
-void (* volatile timer8_routine)(void) = NULL;
+void (* volatile timer8_subroutine)(void) = NULL;
 
 // Above <period_ms> of 10 ms we only get timer increments every multiple of 10.
 //   eg. 76ms truncates to 70ms, 214ms truncates to 210ms, etc.
 // This keeps ISR overhead low by default given current timer implementation.
-// <custom_routine> must be used to handle more precise intervals down to 
+// <custom_subroutine> must be used to handle more precise intervals down to 
 //   ~1ms resolution if needed.
-void timer8_init(uint16_t period_ms, void (* volatile custom_routine)(void)) {
+void timer8_init(uint16_t period_ms, void (* volatile custom_subroutine)(void)) {
 	// This gives us approximate number of clock ticks for 1ms with current prescaler. 
 	uint8_t clk_count;
 	if (period_ms > timer8_MAX_MS) {
@@ -32,7 +32,7 @@ void timer8_init(uint16_t period_ms, void (* volatile custom_routine)(void)) {
 
 	timer8_flag = false;
 	cli();
-	timer8_routine = custom_routine;
+	timer8_subroutine = custom_subroutine;
 
 	OCR0A = clk_count;
 	TCCR0A |= (1 << WGM01);
@@ -54,7 +54,7 @@ ISR(TIMER0_COMPA_vect) {
 		++timer8_cycle_count;
 	}else {
 		timer8_flag = true;
-		if (timer8_routine != NULL) timer8_routine();
+		if (timer8_subroutine != NULL) timer8_subroutine();
 		timer8_cycle_count = 0;
 	};
 }
@@ -63,16 +63,16 @@ ISR(TIMER0_COMPA_vect) {
 uint16_t timer16_cycle_count = 0;
 uint16_t timer16_period_scale = 0;
 
-void (* volatile timer16_routine)(void) = NULL;
+void (* volatile timer16_subroutine)(void) = NULL;
 
-void timer16_init(uint16_t period_s, void (* volatile custom_routine)(void)) {
+void timer16_init(uint16_t period_s, void (* volatile custom_subroutine)(void)) {
 	// Count clock ticks to 1 second.
 	uint16_t clk_count = 15625;
 	timer16_period_scale = period_s - 1;
 
 	timer16_flag = false;
 	cli();
-	timer16_routine = custom_routine;
+	timer16_subroutine = custom_subroutine;
 
 	TCCR1B |= (1 << WGM12); 
 	OCR1A = clk_count;
@@ -94,7 +94,7 @@ ISR(TIMER1_COMPA_vect) {
 		++timer16_cycle_count;
 	}else {
 		timer16_flag = true;
-		if (timer16_routine != NULL) timer16_routine();
+		if (timer16_subroutine != NULL) timer16_subroutine();
 		timer16_cycle_count = 0;
 	};
 }

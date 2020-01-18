@@ -22,17 +22,19 @@ void log_clear() {
 
 // Simply overwrite buffer for now.
 //TODO:
-void log_append(char* info){
+void log_append(char* info) {
 	for (short i = 0; info[i] != '\0'; ++i) {
-		if (log_tail >= LOG_BUFFER_SIZE - 2) {
+		if (log_tail >= LOG_BUFFER_SIZE - 3) {
 			log_tail = 0;
 			log_full = true;
 		};
 		log_buffer[log_tail] = info[i];
 		++log_tail;
 	}
-	log_buffer[log_tail] = '\0';
-	++log_tail;
+	log_buffer[log_tail] = '\r';
+	log_buffer[log_tail + 1] = '\n';
+	log_buffer[log_tail + 2] = '\0';
+	log_tail += 3;
 }
 
 // Flush log buffer.
@@ -46,16 +48,14 @@ void log_print() {
 	log_clear();
 }
 
-void command_poll() {
+char command_poll() {
 	while (rx_available()) {
 		char c = serial_getc(false);
 		if (c >= 'a' || c <= 'Z') {
-			log_print();
-			for (short i = 0; i < 3; ++i) {
-				LED_blink(5);
-			}
+			return c;
 		};
 	}
+	return '\0';
 }
 
 void logger_init() {
