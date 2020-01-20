@@ -10,6 +10,7 @@ Author: Braeden Mulligan
 #include <avr/io.h>
 #include <util/delay.h>
 
+#include "error.h"
 #include "hardware.h"
 #include "logger.h"
 #include "timer.h"
@@ -39,44 +40,89 @@ void enter_limp_mode() {
 	limp_mode = true;
 }
 
+bool error_check(short m_status) {
+	if (limp_mode) {
+		if (sensor_status() < WARNING) return true;
+		limp_mode = false;
+		return false;
+	};
+
+	switch (m_status) {
+		case ADC_NOT_READY:
+			return false;
+		case SENSOR_NO_DATA:
+			return false;
+		case SENSOR_BAD_READS:
+			break;
+		case MULTIPLE_SENSOR_BAD_READS:
+			break;
+		default:
+			break;
+	}
+	enter_limp_mode();
+	return true;
+}
+
 void check_moisture_change(void) {
 	short diff = m_initial - m_level; 
-	if (abs(diff) > MOISTURE_DELTA) m_change = true;
+	if ((abs(diff)) > MOISTURE_DELTA) m_change = true;
 }
 
 //TODO: Debugging purposes.
 char print_ready = '\0';
 char msg[32];
 
+void build_report(char command) {
+	short failures;
+	switch (command) {
+		case '\0':
+			return;
+		case 'e':
+			sprintf(msg, "Error status: %d", m_status);
+			serial_write(msg);
+			failures = sensor_status();
+			if (failures == SENSOR_BAD_READS) serial_write(", Single sensor error");
+			if (failures == MULTIPLE_SENSOR_BAD_READS) serial_write(", Multiple sensor error");
+			serial_write("\r\n");
+			break;
+		case 's':
+			sprintf(msg, "Sensor 0 moisture: %d\r\n", sensor_array[0]);
+			serial_write(msg);
+			sprintf(msg, "Sensor 1 moisture: %d\r\n", sensor_array[1]);
+			serial_write(msg);
+			_delay_ms(10);
+			sprintf(msg, "Average moisture: %d\r\n", m_level);
+			serial_write(msg);
+			break;
+		case 'm':
+			if (limp_mode) {
+		 		serial_write("Running in limp mode");
+			}else {
+				serial_write("Running in normal mode");
+			};
+			break;
+		default:
+			return;
+	}
+};
+
 void control_loop() {
 	for (eternity) {
-		if (print_ready == 'e') {
-			sprintf(msg, "Error status: %d", m_status);
-			log_append(msg);
-		}
-		if (print_ready == 's') {
-			sprintf(msg, "Average moisture: %d", m_level);
-			log_append(msg);
+		build_report(command_poll());
+
+		//TODO: maybe this can go in ISR?
+		if (timer16_flag) {
+			timer16_stop();
+			if (!m_change) enter_limp_mode();
+			timer16_flag = false;
 		};
-		if (print_ready == 'm') {
-			if (limp_mode) {
-		 		log_append("Running in limp mode");
-			}else {
-				log_append("Running in normal mode");
-			};
-		};
-		if (print_ready != '\0') log_print();
-		print_ready = command_poll();
 
 		m_status = moisture_check();
-		if (m_status > 0) m_level = m_status;
+		// WARNING indicates potentially imminent failure.
+		if (m_status > WARNING) m_level = m_status;
 
-		if (m_status < -1 || limp_mode) {
-			//TODO: do something sensible here.
-			//check error codes
-			//exit limp_mode conditions.
-			if (limp_mode) continue;
-			enter_limp_mode();
+		if (m_status < WARNING || limp_mode) {
+			if (error_check(m_status)) continue;
 		}else {
 			if (m_level > m_dry && !valve_status) {
 				valve_status = valve_on();
@@ -91,16 +137,7 @@ void control_loop() {
 				//TODO: observe for hysteresis in moisture value; overshoot?
 			};	
 		};
-
-		if (timer16_flag) {
-			timer16_stop();
-			if (!m_change) {
-				//something fucky going on
-				enter_limp_mode();
-			}
-			timer16_flag = false;
-		};
-		//if (!valve_status) sleep();
+		//if (!valve_status) low_power_sleep();
 	}
 }
 
@@ -113,6 +150,7 @@ int main(void) {
 
 	logger_init();
 	hardware_init(3);
+	timer16_init(30, &check_moisture_change);
 
 	control_loop();
 	return 0;

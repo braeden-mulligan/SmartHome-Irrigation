@@ -13,4 +13,5 @@ void LED_blink(uint16_t period_tenths);
 bool valve_on();
 bool valve_off();
 
+short sensor_status();
 short moisture_check();

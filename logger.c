@@ -5,6 +5,7 @@ Author: Braeden Mulligan
 */
 
 #include <stdbool.h>
+#include <util/delay.h>
 
 #include "hardware.h"
 #include "logger.h"
@@ -42,6 +43,7 @@ void log_print() {
 	if (log_full) log_tail = LOG_BUFFER_SIZE - 1;
 	for (short i = 0; i < log_tail; ++i) {
 		//if (!(i % TX_BUFFER_SIZE)) serial_write(log_buffer + i);
+		if (i > 0 && !(i % TX_BUFFER_SIZE - 1)) _delay_ms(50);
 		serial_putc(log_buffer[i]);
 		serial_print();
 	}
