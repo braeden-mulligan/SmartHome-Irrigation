@@ -35,9 +35,6 @@ void LED_blink(uint16_t period_tenths) {
 }
 
 uint8_t sensor_id = 0;
-volatile short sensor_read = 0;
-volatile bool read_done = false;
-
 short read_failures[SENSOR_COUNT] = {0};
 // This should be < SHORT_MAX / 2.
 short read_failure_limit = 0;
@@ -54,23 +51,26 @@ bool valve_off() {
 
 void ADC_init() {
 	ADMUX = (1 << REFS0);
-	ADCSRA |= (1 << ADEN) | (1 << ADIE); 
+	ADCSRA |= (1 << ADEN);// | (1 << ADIE); 
 	ADCSRA |= (1 << ADPS0) | (1 << ADPS1) | (1 << ADPS2); 
 	DIDR0 = (1 << ADC0D);
 	DIDR0 = (1 << ADC1D);
 }
 
-void ADC_convert(uint8_t sensor_id) {
+short ADC_convert(uint8_t sensor_id) {
 	ADMUX &= ~(0x7); //Reset MUX select bits.
 	ADMUX |= sensor_id;
 	ADCSRA |= (1 << ADSC);
+	while (ADCSRA & (1 << ADSC)) { };
+	return (ADC);
 }
 
+/*
 ISR(ADC_vect) {
 	sensor_read = ADC;
 	read_done = true;
 }
-
+*/
 
 void hardware_init(short failure_limit) {
 	ADC_init();
@@ -90,7 +90,7 @@ void hardware_init(short failure_limit) {
 short calibrated_read(uint8_t id, short sensor_val){
 	switch (id) {
 		case 0:
-			return sensor_val;
+			return sensor_val;// + 20;
 		case 1:
 			return sensor_val;
 		default:
@@ -99,10 +99,11 @@ short calibrated_read(uint8_t id, short sensor_val){
 }
 
 // Make sure there enough good "consecutive" reads.
-bool ADC_verify(uint8_t id) {
+bool sensor_verify(uint8_t id, short adc_val) {
 	short max_failures = 2 * read_failure_limit;
+
 	if (read_failure_limit < 0) return true;
-	if ((sensor_read < SENSOR_MIN) || (sensor_read > SENSOR_MAX)) {
+	if ((adc_val < SENSOR_MIN) || (adc_val > SENSOR_MAX)) {
 		read_failures[id]++;
 		if (read_failures[id] > max_failures) read_failures[id] = max_failures;
 		return false;
@@ -127,7 +128,6 @@ short sensor_average(short* array) {
 	}else {
 		return SENSOR_NO_DATA;
 	};
-	return 0;
 }
 
 short sensor_status() {
@@ -137,27 +137,22 @@ short sensor_status() {
 	}
 	if (count == 1) return SENSOR_BAD_READS;
 	if (count > 1) return MULTIPLE_SENSOR_BAD_READS;
-	return WARNING;
+	return NO_ERROR;
 }
 
 short moisture_check() {
-	if (read_done) {
-		if (!ADC_verify(sensor_id)) {
-			sensor_id = (++sensor_id) % SENSOR_COUNT;
-			read_done = false;
-			ADC_convert(sensor_id);
-			// If one sensor is failing, check all of them.
-			return sensor_status();
-		};
-		sensor_array[sensor_id] = calibrated_read(sensor_id, sensor_read);
-		sensor_id = (++sensor_id) % SENSOR_COUNT;
-		read_done = false;
-		ADC_convert(sensor_id);
+	short sensor_val = ADC_convert(sensor_id);
+	short sensor_condition = 0;
 
-		return sensor_average(sensor_array);
-	}else {
-		return ADC_NOT_READY;
+	if (!sensor_verify(sensor_id, sensor_val)) {
+		// If one sensor is failing, check all of them.
+		sensor_condition = sensor_status();
+		if (!sensor_condition) sensor_condition = WARNING;
 	};
-	return UNKNOWN_ERROR;
+	sensor_array[sensor_id] = calibrated_read(sensor_id, sensor_val);
+	sensor_id = (++sensor_id) % SENSOR_COUNT;
+
+	if (sensor_condition) return sensor_condition;
+	return sensor_average(sensor_array);
 }
 

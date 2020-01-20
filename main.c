@@ -42,16 +42,18 @@ void enter_limp_mode() {
 
 bool error_check(short m_status) {
 	if (limp_mode) {
-		if (sensor_status() < WARNING) return true;
+		if (sensor_status() < NO_ERROR) return true;
 		limp_mode = false;
 		return false;
 	};
 
 	switch (m_status) {
-		case ADC_NOT_READY:
+		case WARNING:
 			return false;
 		case SENSOR_NO_DATA:
 			return false;
+		case UNKNOWN_ERROR:
+			break;
 		case SENSOR_BAD_READS:
 			break;
 		case MULTIPLE_SENSOR_BAD_READS:
@@ -96,9 +98,9 @@ void build_report(char command) {
 			break;
 		case 'm':
 			if (limp_mode) {
-		 		serial_write("Running in limp mode");
+		 		serial_write("Running in limp mode\r\n");
 			}else {
-				serial_write("Running in normal mode");
+				serial_write("Running in normal mode\r\n");
 			};
 			break;
 		default:
@@ -118,9 +120,8 @@ void control_loop() {
 		};
 
 		m_status = moisture_check();
-		// WARNING indicates potentially imminent failure.
-		if (m_status > WARNING) m_level = m_status;
-
+		if (m_status > NO_ERROR) m_level = m_status;
+		// WARNING is okay but indicates potentially imminent failure.
 		if (m_status < WARNING || limp_mode) {
 			if (error_check(m_status)) continue;
 		}else {
