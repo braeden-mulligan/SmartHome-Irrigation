@@ -20,9 +20,9 @@ target: sources libraries
 
 sources:
 	@echo "Making object files..." 
-	$(CC) $(CFLAGS) -o main.o ./main.c
-	$(CC) $(CFLAGS) -o logger.o ./logger.c
-	$(CC) $(CFLAGS) -o hardware.o ./hardware.c
+	$(CC) $(CFLAGS) -o main.o ./src/main.c
+	$(CC) $(CFLAGS) -o logger.o ./src/logger.c
+	$(CC) $(CFLAGS) -o hardware.o ./src/hardware.c
 
 libraries:
 	@echo "Making libraries..." 
