@@ -4,11 +4,14 @@
 
 short sensor_array[SENSOR_COUNT];
 
-void hardware_init(short failure_limits);
+void hardware_init(short failure_limit);
 
-void blink_LED(short period_tenths);
+void LED_on();
+void LED_off();
+void LED_blink(uint16_t period_tenths);
 
-bool valve_off();
 bool valve_on();
+bool valve_off();
 
+short sensor_status();
 short moisture_check();
