@@ -23,4 +23,5 @@ Currently 2 moisture sensors are being used. Without external multiplexing, up t
 	
 ## Notes
 - This project has been deployed as a working prototype but is currently still in development.
+- The circuit diagram was designed for a previous software build and is now obselete.
 	
