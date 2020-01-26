@@ -19,32 +19,58 @@ Author: Braeden Mulligan
 #define abs(x) x > 0 ? x : -x
 
 #define MOISTURE_TARGET 400
-#define MOISTURE_THRESHOLD 55
-#define MOISTURE_DELTA 3 // Account for jitter between readings.
-#define SELF_ADJUST 5
+#define MOISTURE_THRESHOLD 50
+#define MOISTURE_DELTA 5 // Account for jitter between readings.
 
 short m_target = MOISTURE_TARGET;
 short m_damp = MOISTURE_TARGET - MOISTURE_THRESHOLD;
 short m_dry = MOISTURE_TARGET + MOISTURE_THRESHOLD;
 
-bool valve_status = false;
+bool valve_state = false;
 
 short m_status;
 short m_level;
 short m_initial;
-bool m_change = false;
+bool m_change = true;
+
+short timer_elapsed = -1;
+
+void record_time(void) {
+	++timer_elapsed;
+}
+
+void timer_set() {
+	m_initial = m_level;
+	timer_elapsed = 0;
+	timer16_start();
+}
+
+void timer_halt() {
+	timer_elapsed = -1;
+	timer16_stop();
+}
 
 bool limp_mode = false;
+
 void enter_limp_mode() {
-	valve_status = valve_off();
+	valve_state = valve_off();
+	LED_on();
 	limp_mode = true;
 }
 
-bool error_check(short m_status) {
+void exit_limp_mode() {
+	limp_mode = false;
+	//TODO: Comment out to see if limp mode was ever entered. Only for debugging.
+	LED_off();
+}
+
+bool error_check() {
 	if (limp_mode) {
-		if (sensor_status() < NO_ERROR) return true;
-		limp_mode = false;
-		return false;
+		if ((sensor_status() < NO_ERROR) || !m_change) return true;
+		if (m_status >= NO_ERROR) {
+			exit_limp_mode();
+			return false;
+		};
 	};
 
 	switch (m_status) {
@@ -59,91 +85,61 @@ bool error_check(short m_status) {
 		case MULTIPLE_SENSOR_BAD_READS:
 			break;
 		default:
-			break;
+//TODO: maybe dangerous if all possible errors not already handled?
+			return false;
 	}
+
 	enter_limp_mode();
 	return true;
 }
 
-void check_moisture_change(void) {
-	short diff = m_initial - m_level; 
-	if ((abs(diff)) > MOISTURE_DELTA) m_change = true;
-}
-
-//TODO: Debugging purposes.
-char print_ready = '\0';
-char msg[32];
-
-void build_report(char command) {
-	short failures;
-	switch (command) {
-		case '\0':
-			return;
-		case 'e':
-			sprintf(msg, "Error status: %d", m_status);
-			serial_write(msg);
-			failures = sensor_status();
-			if (failures == SENSOR_BAD_READS) serial_write(", Single sensor error");
-			if (failures == MULTIPLE_SENSOR_BAD_READS) serial_write(", Multiple sensor error");
-			serial_write("\r\n");
-			break;
-		case 's':
-			sprintf(msg, "Sensor 0 moisture: %d\r\n", sensor_array[0]);
-			serial_write(msg);
-			sprintf(msg, "Sensor 1 moisture: %d\r\n", sensor_array[1]);
-			serial_write(msg);
-			_delay_ms(10);
-			sprintf(msg, "Average moisture: %d\r\n", m_level);
-			serial_write(msg);
-			break;
-		case 'm':
-			if (limp_mode) {
-		 		serial_write("Running in limp mode\r\n");
-			}else {
-				serial_write("Running in normal mode\r\n");
-			};
-			break;
-		default:
-			return;
-	}
-};
-
 void control_loop() {
+	short moistures[SENSOR_COUNT + 1];
 	for (eternity) {
-		build_report(command_poll());
+		moistures[0] = sensor_array[0];
+		moistures[1] = sensor_array[1];
+		moistures[2] = m_level;
+		build_report(command_poll(), &m_status, &limp_mode, moistures, &timer_elapsed, &valve_state);
 
-		//TODO: maybe this can go in ISR?
-		if (timer16_flag) {
-			timer16_stop();
-			if (!m_change) enter_limp_mode();
-			timer16_flag = false;
+		if (timer_elapsed >= 30) {
+			timer_halt();
+			// If moisture doesn't change quick enough, proably not getting water,
+			// or keeps watering past saturation.
+			short diff = m_initial - m_level; 
+			if ((abs(diff)) > MOISTURE_DELTA) {
+				m_change = true;
+			}else {
+				m_change = false;
+			};
+
+			if (m_change) {
+				timer_set();
+			}else {
+				enter_limp_mode();
+			};
 		};
 
 		m_status = moisture_check();
 		if (m_status > NO_ERROR) m_level = m_status;
 		// WARNING is okay but indicates potentially imminent failure.
-		if (m_status < WARNING || limp_mode) {
-			if (error_check(m_status)) continue;
+		//if (m_status < WARNING || limp_mode) {
+		if (error_check()) {
+			continue;
 		}else {
-			if (m_level > m_dry && !valve_status) {
-				valve_status = valve_on();
-				m_initial = m_level;
-				m_change = false;
-				timer16_start();
+			if (m_level > m_dry && !valve_state) {
+				valve_state = valve_on();
+				timer_set();
 			};
-			if (valve_status && m_level < m_damp){
-				valve_status = valve_off();
-				timer16_stop();
-				timer16_flag = false;
-				//TODO: observe for hysteresis in moisture value; overshoot?
+			if (valve_state && m_level < m_damp){
+				valve_state = valve_off();
+				timer_halt();
+				//timer16_flag = false;
 			};	
 		};
-		//if (!valve_status) low_power_sleep();
+		//if (!valve_state) low_power_sleep();
 	}
 }
 
-	
-	
 int main(void) {
 	// Set internal LED off.
 	DDRB |= _BV(DDB5);
@@ -151,7 +147,7 @@ int main(void) {
 
 	logger_init();
 	hardware_init(3);
-	timer16_init(30, &check_moisture_change);
+	timer16_init(1, &record_time);
 
 	control_loop();
 	return 0;

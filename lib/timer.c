@@ -24,7 +24,7 @@ void timer8_init(uint16_t period_ms, void (* volatile custom_subroutine)(void)) 
 	uint8_t clk_count;
 	if (period_ms > timer8_MAX_MS) {
 		timer8_period_scale = period_ms / timer8_MAX_MS - 1;
-		// This gives us approximate number of clock ticks for 1ms with current prescaler. 
+		// This gives us approximate number of clock ticks for 1ms with 1024 prescaler. 
 		clk_count = timer8_MAX_MS * 15;
 	}else {
 		clk_count = (uint8_t)(period_ms * 15);

@@ -123,10 +123,10 @@ short sensor_average(short* array) {
 			++d;
 		};
 	}
-	if (d) {
-		return (sum / d);
-	}else {
+	if (d < SENSOR_COUNT) {
 		return SENSOR_NO_DATA;
+	}else {
+		return (sum / d);
 	};
 }
 
@@ -147,6 +147,7 @@ short moisture_check() {
 	if (!sensor_verify(sensor_id, sensor_val)) {
 		// If one sensor is failing, check all of them.
 		sensor_condition = sensor_status();
+		// WARNING indicates a bad-read count below threshold.
 		if (!sensor_condition) sensor_condition = WARNING;
 	};
 	sensor_array[sensor_id] = calibrated_read(sensor_id, sensor_val);

@@ -6,11 +6,14 @@ Author: Braeden Mulligan
 
 #include <stdbool.h>
 #include <util/delay.h>
+#include <stdio.h>
 
+#include "error.h"
 #include "hardware.h"
 #include "logger.h"
 #include "serial.h"
 
+/*
 short log_tail = 0;
 bool log_full = false;
 
@@ -48,6 +51,59 @@ void log_print() {
 		serial_print();
 	}
 	log_clear();
+}
+*/
+
+void build_report(char command, short* error_code, bool* limp, short* moisture_values, short* timer, bool* valve) {
+	char msg[32];
+	short failures;
+	switch (command) {
+		case '\0':
+			return;
+		case 'c':
+			//serial_write("AT+GMR\r\n");
+			break;
+		case 'e':
+			sprintf(msg, "Error status: %d", (*error_code));
+			serial_write(msg);
+			failures = sensor_status();
+			if (failures == SENSOR_BAD_READS) serial_write(", Single sensor error.");
+			if (failures == MULTIPLE_SENSOR_BAD_READS) serial_write(", Multiple sensor error.");
+			serial_write("\r\n");
+			break;
+		case 'm':
+			if (*limp) {
+		 		serial_write("Limp mode active.\r\n");
+			}else {
+				serial_write("Normal mode active.\r\n");
+			};
+			break;
+		case 's':
+			for (uint8_t i = 0; i < SENSOR_COUNT; ++i) {
+				sprintf(msg, "Sensor %d: %d\r\n", i, moisture_values[i]);
+				serial_write(msg);
+			}
+			sprintf(msg, "Average: %d\r\n", moisture_values[SENSOR_COUNT]);
+			serial_write(msg);
+			break;
+		case 't':
+			if ((*timer) < 0) {
+				serial_write("Timer stopped.\r\n");
+			}else {
+				sprintf(msg, "Timer running %ds\r\n", (*timer));
+				serial_write(msg);
+			};
+			break;
+		case 'v':
+			if (*valve) {
+		 		serial_write("Valve open.\r\n");
+			}else {
+				serial_write("Valve closed.\r\n");
+			};
+			break;
+		default:
+			return;
+	}
 }
 
 char command_poll() {
