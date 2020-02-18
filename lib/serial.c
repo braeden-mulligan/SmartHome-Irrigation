@@ -19,7 +19,10 @@ void UART_init(bool tx, bool rx) {
 	UBRR0L = BAUD_PRESCALE;
 
 	UCSR0C = (1 << UCSZ00) | (1 << UCSZ01);
-	if (tx) UCSR0B = (1 << TXEN0) | (1 << TXCIE0);
+	if (tx) UCSR0B = (1 << TXEN0);
+#if TX_INTERRUPT
+	if (tx) UCSR0B |= (1 << TXCIE0);
+#endif
 	if (rx) UCSR0B |= (1 << RXEN0) | (1 << RXCIE0);
 	sei();
 }
