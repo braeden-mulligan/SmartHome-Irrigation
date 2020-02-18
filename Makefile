@@ -6,7 +6,7 @@ MAIN := main.c
 #SRC := $(wildcard ./src/*.c)
 #SRC := $(shell find ./src -name *.c)
 OBJS := main.o logger.o hardware.o
-LIBS := serial.o timer.o
+LIBS := uart.o timer.o
 TARGET := irrigation_controller
 
 CRUFT = *.elf *.hex *.lst *.o *.as
@@ -26,7 +26,7 @@ sources:
 
 libraries:
 	@echo "Making libraries..." 
-	$(CC) $(CFLAGS) -o serial.o lib/serial.c
+	$(CC) $(CFLAGS) -o uart.o lib/uart.c
 	$(CC) $(CFLAGS) -o timer.o lib/timer.c
 
 assembly:
