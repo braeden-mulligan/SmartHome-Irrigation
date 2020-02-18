@@ -54,7 +54,7 @@ void log_print() {
 }
 */
 
-void build_report(char command, short* error_code, bool* limp, short* moisture_values, short* timer, bool* valve) {
+void build_report(char command, short* error_code, bool* limp, short* moisture_values, short* timer, bool* valve, short* open_count) {
 	char msg[32];
 	short failures;
 	switch (command) {
@@ -77,6 +77,10 @@ void build_report(char command, short* error_code, bool* limp, short* moisture_v
 			}else {
 				serial_write("Normal mode active.\r\n");
 			};
+			break;
+		case 'o':
+			sprintf(msg, "%d switches since boot.\r\n", (*open_count));
+			serial_write(msg);
 			break;
 		case 's':
 			for (uint8_t i = 0; i < SENSOR_COUNT; ++i) {

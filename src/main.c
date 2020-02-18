@@ -94,14 +94,15 @@ bool error_check() {
 }
 
 void control_loop() {
+	short open_count = 0;
 	short moistures[SENSOR_COUNT + 1];
 	for (eternity) {
 		moistures[0] = sensor_array[0];
 		moistures[1] = sensor_array[1];
 		moistures[2] = m_level;
-		build_report(command_poll(), &m_status, &limp_mode, moistures, &timer_elapsed, &valve_state);
+		build_report(command_poll(), &m_status, &limp_mode, moistures, &timer_elapsed, &valve_state, &open_count);
 
-		if (timer_elapsed >= 30) {
+		if (timer_elapsed >= 120) {
 			timer_halt();
 			// If moisture doesn't change quick enough, proably not getting water,
 			// or keeps watering past saturation.
@@ -128,6 +129,7 @@ void control_loop() {
 		}else {
 			if (m_level > m_dry && !valve_state) {
 				valve_state = valve_on();
+				++open_count;
 				timer_set();
 			};
 			if (valve_state && m_level < m_damp){
@@ -150,5 +152,6 @@ int main(void) {
 	timer16_init(1, &record_time);
 
 	control_loop();
+
 	return 0;
 }

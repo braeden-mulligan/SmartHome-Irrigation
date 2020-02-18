@@ -20,6 +20,6 @@ void log_append(char* info);
 
 void log_print();
 
-void build_report(char command, short* error_code, bool* limp, short* moisture_values, short* timer, bool* valve);
+void build_report(char command, short* error_code, bool* limp, short* moisture_values, short* timer, bool* valve, short* open_count);
 
 char command_poll();
