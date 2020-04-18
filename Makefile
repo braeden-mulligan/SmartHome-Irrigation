@@ -1,41 +1,56 @@
 CC := avr-gcc
-CFLAGS := -std=c99 -I include -Os -DF_CPU=16000000UL -mmcu=atmega328p -c 
-LFLAGS := -std=c99 -mmcu=atmega328p
+CFLAGS := -std=gnu99 -I include -I lib -Os -DF_CPU=16000000UL -mmcu=atmega328p -Wall 
+LFLAGS := -std=gnu99 -mmcu=atmega328p -Wall
 
-MAIN := main.c
-#SRC := $(wildcard ./src/*.c)
-#SRC := $(shell find ./src -name *.c)
-OBJS := main.o logger.o hardware.o
-LIBS := uart.o timer.o
-TARGET := irrigation_controller
+SRC := $(shell ls src/*.c)
+TMP := $(subst src/,build/,$(SRC))
+OBJ := $(subst .c,.o,$(TMP))
 
-CRUFT = *.elf *.hex *.lst *.o *.as
+LIB_DIR := lib
+LIB_SRC := $(shell ls lib/*.c)
+LIB_TMP := $(subst $(LIB_DIR)/,build/,$(LIB_SRC))
+OBJ += $(subst .c,.o,$(LIB_TMP)) 
 
-all: clean target upload
+TARGET := smarthome-irrigation
 
-target: sources libraries 
+CRUFT := *.o *.elf
+
+all: target
+
+full: clean target 
+
+uno: target | upload_uno
+
+nano: target | upload_nano
+
+target: sources
+	@mkdir -p bin
 	@echo "Building $(TARGET)..."
-	$(CC) $(LFLAGS) -o $(TARGET).elf $(OBJS) $(LIBS)
-	avr-objcopy -O ihex -R .eeprom $(TARGET).elf $(TARGET).hex
+	$(CC) $(LFLAGS) -o ./build/$(TARGET).elf $(OBJ)
+	avr-objcopy -O ihex -R .eeprom ./build/$(TARGET).elf bin/$(TARGET).hex
 
-sources:
-	@echo "Making object files..." 
-	$(CC) $(CFLAGS) -o main.o ./src/main.c
-	$(CC) $(CFLAGS) -o logger.o ./src/logger.c
-	$(CC) $(CFLAGS) -o hardware.o ./src/hardware.c
+sources: $(OBJ) 
+build/%.o: src/%.c | build_dir
+	@echo "Compiling source code..."
+	$(CC) $(CFLAGS) -o $@ -c $<
 
-libraries:
-	@echo "Making libraries..." 
-	$(CC) $(CFLAGS) -o uart.o lib/uart.c
-	$(CC) $(CFLAGS) -o timer.o lib/timer.c
+build/%.o: $(LIB_DIR)/%.c | build_dir
+	@echo "Compiling libraries..."
+	$(CC) $(CFLAGS) -o $@ -c $<
 
-assembly:
-	avr-gcc -std=c99 -Os -DF_CPU=16000000UL -mmcu=atmega328p -S -o $(TARGET).as $(TARGET).c
 
-upload:
-	sudo avrdude -F -V -c arduino -p ATMEGA328P -P /dev/ttyACM0 -b 115200 -U flash:w:$(TARGET).hex
+upload_uno: bin/$(TARGET).hex | bin
+	sudo avrdude -F -V -c arduino -p m328p -P /dev/ttyACM0 -b 115200 -U flash:w:./bin/$(TARGET).hex:i
+
+upload_nano: bin/$(TARGET).hex | bin
+	sudo avrdude -F -V -c arduino -p m328p -P /dev/ttyUSB0 -b 57600 -U flash:w:./bin/$(TARGET).hex:i
+
+.PHONY: build_dir
+build_dir:
+	@mkdir -p build
 
 .PHONY: clean
-clean:
+clean: 
+	rm -f ./bin/*
 	@echo "Cleaning..."
-	rm -f $(CRUFT)
+	rm -f ./build/$(CRUFT)
