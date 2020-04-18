@@ -47,6 +47,7 @@ void timer8_start() {
 void timer8_stop() {
 	TCCR0B &= ~((1 << CS02) | (1 << CS00));
 	TCNT0 = 0;
+	timer8_cycle_count = 0;
 }
 
 ISR(TIMER0_COMPA_vect) {
@@ -87,6 +88,7 @@ void timer16_start(){
 void timer16_stop(){
 	TCCR1B &= ~((1 << CS10) | (1 << CS12));
 	TCNT1 = 0;
+	timer16_cycle_count = 0;
 }
 
 ISR(TIMER1_COMPA_vect) {
